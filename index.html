@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tex APK Base Generator V2</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:linear-gradient(135deg,#080012,#16002f,#00172d);
+font-family:Arial,sans-serif;color:#fff;padding:20px}
+.card{max-width:760px;margin:auto;background:#151020ee;border:1px solid #8b5cf655;border-radius:24px;padding:24px;box-shadow:0 20px 70px #0009}
+h1{margin:0 0 5px;font-size:28px}.sub{color:#bdb5d8;margin-bottom:22px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.full{grid-column:1/-1}
+label{display:block;font-size:13px;color:#cfc6e8;margin-bottom:7px}
+input,select{width:100%;padding:13px;border-radius:12px;border:1px solid #55466f;background:#0c0914;color:#fff;outline:none}
+input:focus,select:focus{border-color:#9b72ff}
+.file{padding:10px}
+.preview{display:flex;align-items:center;gap:15px;margin-top:10px;padding:12px;background:#0c0914;border-radius:14px}
+.preview img{width:64px;height:64px;border-radius:15px;object-fit:cover;display:none}
+button{width:100%;margin-top:20px;padding:15px;border:0;border-radius:13px;background:linear-gradient(90deg,#8b5cf6,#5b8cff);color:white;font-weight:700;font-size:15px;cursor:pointer}
+button:disabled{opacity:.55;cursor:not-allowed}
+.status{display:none;margin-top:15px;padding:12px;border-radius:12px;background:#0c0914;color:#d9d0e9}
+.note{margin-top:14px;color:#aaa2bc;font-size:12px;line-height:1.5}
+@media(max-width:580px){.grid{grid-template-columns:1fr}.full{grid-column:auto}}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>✨ Tex APK Base Generator V2</h1>
+<div class="sub">Crie os arquivos-base de um projeto Android, sem compilar e sem certificado.</div>
+
+<div class="grid">
+<div>
+<label>Nome do aplicativo</label>
+<input id="appName" value="Meu App">
+</div>
+
+<div>
+<label>Package ID</label>
+<input id="package" value="com.tex.meuapp">
+</div>
+
+<div>
+<label>Versão</label>
+<input id="version" value="1.0">
+</div>
+
+<div>
+<label>Version Code</label>
+<input id="versionCode" type="number" min="1" value="1">
+</div>
+
+<div>
+<label>Android mínimo</label>
+<select id="minSdk">
+<option value="21">Android 5.0 • API 21</option>
+<option value="22">Android 5.1 • API 22</option>
+<option value="23">Android 6.0 • API 23</option>
+<option value="24">Android 7.0 • API 24</option>
+<option value="25">Android 7.1 • API 25</option>
+<option value="26">Android 8.0 • API 26</option>
+<option value="27">Android 8.1 • API 27</option>
+<option value="28">Android 9 • API 28</option>
+<option value="29">Android 10 • API 29</option>
+<option value="30">Android 11 • API 30</option>
+<option value="31">Android 12 • API 31</option>
+<option value="32">Android 12L • API 32</option>
+<option value="33">Android 13 • API 33</option>
+<option value="34">Android 14 • API 34</option>
+<option value="35">Android 15 • API 35</option>
+<option value="36">Android 16 • API 36</option>
+</select>
+</div>
+
+<div>
+<label>Target SDK</label>
+<select id="targetSdk">
+<option value="36">Android 16 • API 36</option>
+<option value="35">Android 15 • API 35</option>
+<option value="34">Android 14 • API 34</option>
+<option value="33">Android 13 • API 33</option>
+</select>
+</div>
+
+<div>
+<label>Orientação</label>
+<select id="orientation">
+<option value="unspecified">Automática</option>
+<option value="portrait">Retrato</option>
+<option value="landscape">Paisagem</option>
+</select>
+</div>
+
+<div>
+<label>Tema</label>
+<select id="theme">
+<option value="light">Claro</option>
+<option value="dark">Escuro</option>
+</select>
+</div>
+
+<div class="full">
+<label>Ícone do aplicativo</label>
+<input class="file" id="icon" type="file" accept="image/png,image/jpeg,image/webp">
+<div class="preview">
+<img id="previewImg">
+<span id="previewText">Nenhuma imagem escolhida</span>
+</div>
+</div>
+
+<div class="full">
+<label>Descrição</label>
+<input id="description" value="Aplicativo criado com Tex APK Base Generator">
+</div>
+
+<div class="full">
+<label>Permissões</label>
+<select id="permission" multiple size="4">
+<option value="">Nenhuma</option>
+<option value="android.permission.INTERNET">Internet</option>
+<option value="android.permission.ACCESS_NETWORK_STATE">Estado da rede</option>
+<option value="android.permission.VIBRATE">Vibração</option>
+</select>
+</div>
+</div>
+
+<button id="generateBtn">📦 Gerar projeto ZIP</button>
+<div id="status" class="status"></div>
+<div class="note">
+O gerador cria um projeto Android base. A imagem escolhida é redimensionada no navegador
+para as densidades do launcher. Nenhum APK é compilado e nenhum certificado, keystore ou
+assinatura é criado.
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+
+$("icon").addEventListener("change",()=>{
+  const file=$("icon").files[0];
+  if(!file)return;
+  const url=URL.createObjectURL(file);
+  $("previewImg").src=url;
+  $("previewImg").style.display="block";
+  $("previewText").textContent=file.name;
+});
+
+function validPackage(p){
+  return /^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+$/.test(p);
+}
+
+function esc(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
+  .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
+}
+
+function safeName(s){
+  return (s||"MeuApp").replace(/[^A-Za-z0-9_-]/g,"_");
+}
+
+function permissionsXml(){
+  return [...$("permission").selectedOptions]
+    .map(o=>o.value)
+    .filter(Boolean)
+    .map(p=>`    <uses-permission android:name="${p}" />`)
+    .join("\\n");
+}
+
+async function imageBlob(file,size){
+  const bitmap=await createImageBitmap(file);
+  const canvas=document.createElement("canvas");
+  canvas.width=size;canvas.height=size;
+  const ctx=canvas.getContext("2d");
+  ctx.clearRect(0,0,size,size);
+  const scale=Math.max(size/bitmap.width,size/bitmap.height);
+  const w=bitmap.width*scale,h=bitmap.height*scale;
+  ctx.drawImage(bitmap,(size-w)/2,(size-h)/2,w,h);
+  return new Promise(resolve=>canvas.toBlob(resolve,"image/png"));
+}
+
+async function generate(){
+  const status=$("status");
+  const btn=$("generateBtn");
+  const name=$("appName").value.trim()||"Meu App";
+  const pkg=$("package").value.trim();
+  const version=$("version").value.trim()||"1.0";
+  const versionCode=$("versionCode").value||"1";
+  const minSdk=Number($("minSdk").value);
+  const targetSdk=Number($("targetSdk").value);
+  const orientation=$("orientation").value;
+  const theme=$("theme").value;
+  const desc=$("description").value.trim()||"Aplicativo Android";
+  const icon=$("icon").files[0];
+
+  if(!validPackage(pkg)){
+    status.style.display="block";
+    status.textContent="❌ Package inválido. Exemplo: com.tex.meuapp";
+    return;
+  }
+  if(minSdk>targetSdk){
+    status.style.display="block";
+    status.textContent="❌ O Android mínimo não pode ser maior que o Target SDK.";
+    return;
+  }
+  if(typeof JSZip==="undefined"){
+    status.style.display="block";
+    status.textContent="❌ A biblioteca ZIP não carregou. Abra com internet.";
+    return;
+  }
+
+  btn.disabled=true;
+  status.style.display="block";
+  status.textContent="⏳ Montando os arquivos...";
+
+  const zip=new JSZip();
+  const root=safeName(name);
+  const ppath=pkg.replace(/\\./g,"/");
+  const java=root+"/app/src/main/java/"+ppath;
+
+  const manifest=`<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+${permissionsXml()}
+
+    <application
+        android:allowBackup="true"
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.App">
+        <activity
+            android:name=".MainActivity"
+            android:screenOrientation="${orientation}"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>`;
+
+  const files={
+[`${root}/settings.gradle`]:`pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = "${name}"
+include(":app")
+`,
+[`${root}/build.gradle`]:`plugins {
+    id 'com.android.application' version '8.6.1' apply false
+}
+`,
+[`${root}/gradle.properties`]:`org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+android.useAndroidX=true
+`,
+[`${root}/app/build.gradle`]:`plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace '${pkg}'
+    compileSdk ${targetSdk}
+
+    defaultConfig {
+        applicationId '${pkg}'
+        minSdk ${minSdk}
+        targetSdk ${targetSdk}
+        versionCode ${versionCode}
+        versionName '${version}'
+    }
+}
+`,
+[`${root}/app/proguard-rules.pro`]:`# Regras ProGuard/R8 do aplicativo
+`,
+[`${root}/app/src/main/AndroidManifest.xml`]:manifest,
+[`${root}/app/src/main/res/values/strings.xml`]:`<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">${esc(name)}</string>
+    <string name="app_description">${esc(desc)}</string>
+</resources>`,
+[`${root}/app/src/main/res/values/colors.xml`]:`<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="purple_500">#7C4DFF</color>
+    <color name="purple_700">#5E35B1</color>
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
+</resources>`,
+[`${root}/app/src/main/res/values/themes.xml`]:`<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.App" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">@color/purple_500</item>
+        <item name="android:navigationBarColor">@color/black</item>
+    </style>
+</resources>`,
+[`${root}/app/src/main/res/layout/activity_main.xml`]:`<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+</FrameLayout>`,
+[`${java}/MainActivity.java`]:`package ${pkg};
+
+import android.app.Activity;
+import android.os.Bundle;
+
+public class MainActivity extends Activity {
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+    }
+}
+`,
+[`${root}/README.txt`]:`TEX APK BASE GENERATOR V2
+
+Nome: ${name}
+Package: ${pkg}
+Versão: ${version}
+Version Code: ${versionCode}
+Android mínimo: API ${minSdk}
+Target SDK: API ${targetSdk}
+Orientação: ${orientation}
+Tema: ${theme}
+
+Este projeto contém somente arquivos-base.
+Nenhum APK foi compilado.
+Nenhum certificado, keystore ou assinatura foi criado.
+`
+  };
+
+  Object.entries(files).forEach(([path,data])=>zip.file(path,data));
+
+  if(icon){
+    status.textContent="🖼️ Preparando o ícone...";
+    const sizes={
+      "mdpi":48,"hdpi":72,"xhdpi":96,"xxhdpi":144,"xxxhdpi":192
+    };
+    for(const [density,size] of Object.entries(sizes)){
+      const blob=await imageBlob(icon,size);
+      zip.file(`${root}/app/src/main/res/mipmap-${density}/ic_launcher.png`,blob);
+      zip.file(`${root}/app/src/main/res/mipmap-${density}/ic_launcher_round.png`,blob);
+    }
+  }else{
+    status.textContent="📦 Gerando ZIP...";
+  }
+
+  const blob=await zip.generateAsync({type:"blob"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;a.download=root+".zip";
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+
+  status.textContent="✅ Prontinho! Projeto gerado com sucesso.";
+  btn.disabled=false;
+}
+$("generateBtn").addEventListener("click",generate);
+</script>
+</body>
+</html>

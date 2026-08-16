@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Tex APK Base Generator</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;min-height:100vh;font-family:Arial,sans-serif;
+  background:linear-gradient(135deg,#090018,#16002e,#00152e);
+  color:#fff;display:flex;align-items:center;justify-content:center;padding:20px
+}
+.card{
+  width:min(700px,100%);background:rgba(20,15,35,.92);
+  border:1px solid #7b4cff55;border-radius:24px;padding:24px;
+  box-shadow:0 20px 60px #0008
+}
+h1{margin:0 0 6px;font-size:28px}
+.sub{color:#bdb5d8;margin-bottom:22px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.field{display:flex;flex-direction:column;gap:7px}
+.full{grid-column:1/-1}
+label{font-size:13px;color:#cfc6e8}
+input,select{
+  width:100%;padding:13px;border-radius:12px;border:1px solid #55466f;
+  background:#0d0a17;color:white;outline:none
+}
+input:focus,select:focus{border-color:#9a70ff}
+button{
+  width:100%;margin-top:20px;padding:14px;border:0;border-radius:13px;
+  background:linear-gradient(90deg,#8b5cf6,#5b8cff);color:white;
+  font-weight:700;font-size:15px;cursor:pointer
+}
+button:hover{filter:brightness(1.1)}
+.note{margin-top:14px;font-size:12px;color:#aaa2bc;line-height:1.5}
+.status{margin-top:16px;padding:12px;border-radius:12px;background:#0d0a17;color:#cfc6e8;display:none}
+@media(max-width:560px){.grid{grid-template-columns:1fr}.full{grid-column:auto}}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>✨ Tex APK Base Generator</h1>
+  <div class="sub">Gere a estrutura de um projeto Android. Sem compilar e sem certificado.</div>
+
+  <div class="grid">
+    <div class="field">
+      <label>Nome do aplicativo</label>
+      <input id="appName" value="Meu App">
+    </div>
+
+    <div class="field">
+      <label>Package ID</label>
+      <input id="package" value="com.tex.meuapp">
+    </div>
+
+    <div class="field">
+      <label>Versão</label>
+      <input id="version" value="1.0">
+    </div>
+
+    <div class="field">
+      <label>Version Code</label>
+      <input id="versionCode" type="number" value="1" min="1">
+    </div>
+
+    <div class="field">
+      <label>Android mínimo</label>
+      <select id="minSdk">
+        <option value="23">Android 6.0 (API 23)</option>
+        <option value="26">Android 8.0 (API 26)</option>
+        <option value="28">Android 9 (API 28)</option>
+        <option value="29">Android 10 (API 29)</option>
+        <option value="31">Android 12 (API 31)</option>
+        <option value="33">Android 13 (API 33)</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Target SDK</label>
+      <select id="targetSdk">
+        <option value="35">API 35</option>
+        <option value="34">API 34</option>
+        <option value="33">API 33</option>
+      </select>
+    </div>
+
+    <div class="field full">
+      <label>Descrição</label>
+      <input id="description" value="Aplicativo criado com Tex APK Base Generator">
+    </div>
+  </div>
+
+  <button onclick="generate()">📦 Gerar arquivos ZIP</button>
+  <div id="status" class="status"></div>
+  <div class="note">
+    O ZIP contém apenas arquivos-base do projeto. Nenhum APK é compilado e nenhum
+    certificado, keystore ou assinatura é criado.
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+function esc(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function safePackage(p){
+  return /^[a-zA-Z_][a-zA-Z0-9_]*(\\.[a-zA-Z_][a-zA-Z0-9_]*)+$/.test(p);
+}
+
+async function generate(){
+  const status=document.getElementById("status");
+  const name=document.getElementById("appName").value.trim() || "Meu App";
+  const pkg=document.getElementById("package").value.trim();
+  const version=document.getElementById("version").value.trim() || "1.0";
+  const versionCode=document.getElementById("versionCode").value || "1";
+  const minSdk=document.getElementById("minSdk").value;
+  const targetSdk=document.getElementById("targetSdk").value;
+  const description=document.getElementById("description").value.trim();
+
+  if(!safePackage(pkg)){
+    status.style.display="block";
+    status.textContent="❌ Package ID inválido. Exemplo: com.tex.meuapp";
+    return;
+  }
+
+  if(typeof JSZip==="undefined"){
+    status.style.display="block";
+    status.textContent="❌ A biblioteca ZIP não carregou. Abra o HTML com internet.";
+    return;
+  }
+
+  const zip=new JSZip();
+  const root=name.replace(/[^a-zA-Z0-9_-]/g,"_");
+  const packagePath=pkg.replace(/\\./g,"/");
+  const javaPath=root+"/app/src/main/java/"+packagePath;
+
+  const files={
+`${root}/settings.gradle`:
+`pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = "${name}"
+include(":app")
+`,
+`${root}/build.gradle`:
+`plugins {
+    id 'com.android.application' version '8.6.1' apply false
+}
+`,
+`${root}/gradle.properties`:
+`org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+android.useAndroidX=true
+`,
+`${root}/app/build.gradle`:
+`plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace '${pkg}'
+    compileSdk ${targetSdk}
+
+    defaultConfig {
+        applicationId '${pkg}'
+        minSdk ${minSdk}
+        targetSdk ${targetSdk}
+        versionCode ${versionCode}
+        versionName '${version}'
+    }
+}
+`,
+`${root}/app/src/main/AndroidManifest.xml`:
+`<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:allowBackup="true"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.App">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+    </application>
+</manifest>
+`,
+`${root}/app/src/main/res/values/strings.xml`:
+`<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">${esc(name)}</string>
+    <string name="app_description">${esc(description)}</string>
+</resources>
+`,
+`${root}/app/src/main/res/values/colors.xml`:
+`<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="purple_500">#7C4DFF</color>
+    <color name="purple_700">#5E35B1</color>
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
+</resources>
+`,
+`${root}/app/src/main/res/values/themes.xml`:
+`<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.App" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">@color/purple_500</item>
+        <item name="android:navigationBarColor">@color/black</item>
+    </style>
+</resources>
+`,
+`${javaPath}/MainActivity.java`:
+`package ${pkg};
+
+import android.app.Activity;
+import android.os.Bundle;
+import android.widget.TextView;
+
+public class MainActivity extends Activity {
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        TextView text = new TextView(this);
+        text.setText("Olá! ${name}");
+        text.setTextSize(22);
+        text.setPadding(32, 32, 32, 32);
+
+        setContentView(text);
+    }
+}
+`,
+`${root}/README.txt`:
+`TEX APK BASE GENERATOR
+
+Nome: ${name}
+Package: ${pkg}
+Versão: ${version}
+Version Code: ${versionCode}
+Min SDK: ${minSdk}
+Target SDK: ${targetSdk}
+
+Este projeto é apenas uma base.
+Nenhum APK foi compilado.
+Nenhum certificado/keystore foi criado.
+`
+  };
+
+  Object.entries(files).forEach(([path,content])=>zip.file(path,content));
+
+  status.style.display="block";
+  status.textContent="⏳ Gerando ZIP...";
+
+  const blob=await zip.generateAsync({type:"blob"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=root+".zip";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+
+  status.textContent="✅ Projeto gerado! O ZIP contém somente os arquivos-base.";
+}
+</script>
+</body>
+</html>
